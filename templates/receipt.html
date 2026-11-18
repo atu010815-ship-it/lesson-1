@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: "DejaVu Sans", Roboto, sans-serif;
+      margin: 40px;
+    }
+    table {
+      border-collapse: collapse;
+    }
+    td {
+      padding: 8px 16px 8px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Чек</h1>
+
+  <table>
+    <tr>
+      <td>Товар:</td>
+      <td>{{ product }}</td>
+    </tr>
+    <tr>
+      <td>Цена:</td>
+      <td>{{ price }}</td>
+    </tr>
+    <tr>
+      <td>Количество:</td>
+      <td>{{ qty }}</td>
+    </tr>
+  </table>
+</body>
+</html>
