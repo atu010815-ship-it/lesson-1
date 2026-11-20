@@ -192,9 +192,18 @@ def generate_password(length: int = 16) -> str:
             return password
 
 
+def hidden_prompt(text: str) -> str:
+    """Запрашивает пароль с скрытым вводом (getpass с fallback)."""
+    try:
+        return getpass.getpass(text)
+    except (EOFError, KeyboardInterrupt):
+        # Fallback для окружений без TTY
+        return input(text)
+
+
 def prompt_master_password() -> str:
-    """Запрашивает мастер-пароль у пользователя."""
-    return input("Введите мастер-пароль: ")
+    """Запрашивает мастер-пароль у пользователя (ввод скрыт)."""
+    return hidden_prompt("Введите мастер-пароль: ")
 
 # ---------------------------------------------------------------------------
 # Основной обработчик CLI
@@ -207,8 +216,8 @@ def cmd_init(args: argparse.Namespace) -> None:
         return
 
     while True:
-        pass1 = input("Создайте мастер-пароль: ")
-        pass2 = input("Повторите мастер-пароль: ")
+        pass1 = hidden_prompt("Создайте мастер-пароль: ")
+        pass2 = hidden_prompt("Повторите мастер-пароль: ")
         if pass1 == pass2:
             break
         print("Пароли не совпадают. Попробуйте снова.")
@@ -230,8 +239,8 @@ def cmd_change(args: argparse.Namespace) -> None:
         return
 
     while True:
-        pass1 = input("Введите новый мастер-пароль: ")
-        pass2 = input("Повторите новый мастер-пароль: ")
+        pass1 = hidden_prompt("Введите новый мастер-пароль: ")
+        pass2 = hidden_prompt("Повторите новый мастер-пароль: ")
         if pass1 == pass2:
             break
         print("Пароли не совпадают. Попробуйте снова.")
@@ -306,8 +315,8 @@ def cmd_new(args: argparse.Namespace) -> None:
 
     # Повторяем инициализацию
     while True:
-        pass1 = input("Создайте новый мастер-пароль: ")
-        pass2 = input("Повторите новый мастер-пароль: ")
+        pass1 = hidden_prompt("Создайте новый мастер-пароль: ")
+        pass2 = hidden_prompt("Повторите новый мастер-пароль: ")
         if pass1 == pass2:
             break
         print("Пароли не совпадают. Попробуйте снова.")
@@ -318,11 +327,70 @@ def cmd_new(args: argparse.Namespace) -> None:
     print("Данные удалены, мастер-пароль создан заново.")
 
 
-def cmd_generate(args: argparse.Namespace) -> None:
+def cmd_generate(args: argparse.Namespace = None) -> None:
     """Сгенерировать случайный пароль."""
-    length = args.length if hasattr(args, "length") and args.length else 16
+    length = 16
+    if args is not None and hasattr(args, "length") and args.length:
+        length = args.length
     pw = generate_password(length)
     print(f"Сгенерированный пароль ({length} символов):\n  {pw}")
+
+
+def show_menu() -> None:
+    """Показывает интерактивное меню и обрабатывает выбор пользователя."""
+    print("\n=== Меню ===")
+    print("1. Добавить запись       (add)")
+    print("2. Получить пароль       (get)")
+    print("3. Список записей        (list)")
+    print("4. Удалить запись        (delete)")
+    print("5. Сгенерировать пароль  (generate)")
+    print("6. Сменить мастер-пароль (change)")
+    print("7. Выход                 (exit)")
+    print("==============\n")
+
+    choice = input("Выберите действие: ").strip().lower()
+
+    # Команды без авторизации
+    if choice in ("5", "generate"):
+        cmd_generate(None)
+        return
+
+    # Команды с авторизацией
+    if not os.path.exists(KEY_PATH):
+        print("Ошибка: мастер-пароль не установлен. Запустите «python password_manager.py init».")
+        return
+
+    if not os.path.exists(DB_PATH):
+        print("Ошибка: база данных не найдена. Запустите «python password_manager.py init».")
+        return
+
+    master = prompt_master_password()
+    if not verify_master_password(master):
+        print("Неверный мастер-пароль.")
+        return
+
+    commands = {
+        "1": cmd_add,
+        "2": cmd_get,
+        "3": cmd_list,
+        "4": cmd_delete,
+        "add": cmd_add,
+        "get": cmd_get,
+        "list": cmd_list,
+        "delete": cmd_delete,
+        "change": cmd_change,
+    }
+
+    handler = commands.get(choice)
+    if handler:
+        handler(None)
+    elif choice in ("6", "change"):
+        cmd_change(None)
+    elif choice in ("7", "exit"):
+        print("До свидания!")
+    else:
+        print("Неверный выбор. Попробуйте снова.\n")
+        show_menu()
 
 
 def main() -> None:
@@ -373,7 +441,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command is None:
-        parser.print_help()
+        show_menu()
         return
 
     # Команды, не требующие авторизации
